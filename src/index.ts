@@ -5,9 +5,10 @@ import {ensureRender} from "./util"
 import fs from "fs"
 import ora from "ora"
 
+const {MS_ACCOUNT, MS_PASSWORD} = process.env
 const spinner = ora()
 
-async function test() {
+async function crawlPesonnelInfo() {
     const browser = await getBrowser()
     const page = await browser.newPage()
 
@@ -39,36 +40,35 @@ async function test() {
             .catch((e) => {})
     })
 
-    //잘못 입력했을 경우도 핸들링해야함
-    const id = await inquirer.prompt({
-        type: "input",
-        name: "id",
-        message: "마이크로소프트 직방 계정 아이디를 입력해주세요",
-        default: "doe@zigbang.com",
-    }).then((value) => value.id)
+    // const id = await inquirer.prompt({
+    //     type: "input",
+    //     name: "id",
+    //     message: "마이크로소프트 직방 계정 아이디를 입력해주세요",
+    //     default: "doe@zigbang.com",
+    // }).then((value) => value.id)
 
-    await emailInput?.type(id)
+    await emailInput?.type(MS_ACCOUNT)
     await nextButton?.click()
 
     const msIdInput = await page.waitForSelector("input#i0116")
-    await msIdInput?.type(id)
+    await msIdInput?.type(MS_ACCOUNT)
 
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
 
     const msPassInput = await page.waitForSelector("input#i0118")
 
-    const pass = await inquirer.prompt({
-        type: "password",
-        name: "pass",
-        message: "마이크로소프트 직방 계정 패스워드를 입력해주세요",
-        default: "secret",
-    }).then((value) => value.pass)
+    // const pass = await inquirer.prompt({
+    //     type: "password",
+    //     name: "pass",
+    //     message: "마이크로소프트 직방 계정 패스워드를 입력해주세요",
+    //     default: "secret",
+    // }).then((value) => value.pass)
 
     spinner.text = "Logging in to docswave"
     spinner.start()
 
-    await msPassInput?.type(pass)
+    await msPassInput?.type(MS_PASSWORD)
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
 
@@ -151,7 +151,7 @@ async function test() {
     await browser.close()
 }
 
-test()
+crawlPesonnelInfo()
 
 type Person = {
     name: string
