@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "nodemon --exec 'ts-node' ./src/index.ts",
-    "build": "tsc",
+    "build": "rm -rf ./dist && tsc",
     "start": "node dist/index.js"
   },
   "devDependencies": {
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "inquirer": "^8.0.0",
+    "ora": "^5.4.0",
     "puppeteer": "^8.0.0"
   }
 }

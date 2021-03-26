@@ -3,16 +3,41 @@ import { ElementHandle } from "puppeteer"
 import {getBrowser} from "./module"
 import {ensureRender} from "./util"
 import fs from "fs"
+import ora from "ora"
+
+const spinner = ora()
 
 async function test() {
     const browser = await getBrowser()
     const page = await browser.newPage()
 
-    await page.goto("https://www.docswave.com/ko")
+    await page.setViewport({width: 1280, height: 720})
+
+    await page.goto("https://www.docswave.com/ko", { waitUntil: "networkidle0" })
     const signinButtons = await page.waitForSelector(".signin-button")
     await signinButtons?.click()
+    await page.waitForNavigation({ waitUntil: "networkidle0" })
+
     const emailInput = await page.waitForSelector("input[type=email]")
-    const nextButton = await page.waitForSelector(".VfPpkd-RLmnJb")
+    const nextButton: ElementHandle | null = await new Promise((resolve) => {
+        let catchedNextButton = false
+        page.waitForSelector("#identifierNext button")
+            .then((handle) => {
+                if (!catchedNextButton) {
+                    catchedNextButton = true
+                    resolve(handle)
+                }
+            })
+            .catch((e) => {})
+        page.waitForSelector("input#next")
+            .then((handle) => {
+                if (!catchedNextButton) {
+                    catchedNextButton = true
+                    resolve(handle)
+                }
+            })
+            .catch((e) => {})
+    })
 
     //잘못 입력했을 경우도 핸들링해야함
     const id = await inquirer.prompt({
@@ -40,6 +65,9 @@ async function test() {
         default: "secret",
     }).then((value) => value.pass)
 
+    spinner.text = "Logging in to docswave"
+    spinner.start()
+
     await msPassInput?.type(pass)
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
@@ -52,11 +80,16 @@ async function test() {
 
     await ensureRender(page)
 
-    await page.goto("https://www.docswave.com/app/a/members")
+    spinner.succeed()
+    spinner.text = "Navigating to member list"
+    spinner.start()
 
-    await page.waitForNavigation({ waitUntil: "networkidle0" })
+    await page.goto("https://www.docswave.com/app/a/members", { waitUntil: "networkidle0" })
+
     await ensureRender(page)
+    spinner.succeed()
 
+    await page.waitForSelector(".card-wrapper")
     const cardWrapper = await page.$(".card-wrapper")
 
     let prevScrollHeight = 0
@@ -79,7 +112,12 @@ async function test() {
         })
     }
 
+    spinner.text = "Scrolling to the end"
+    spinner.start()
+
     await scrollToCardWrapperEnd()
+
+    spinner.succeed()
 
     const cards = await cardWrapper?.$$("div.card")
     const mapCardToJson = async (card: ElementHandle) => {
@@ -99,13 +137,18 @@ async function test() {
 
     if (!cards) throw Error("couldn't find people card");
 
+    spinner.text = "Crawling pensonnel info"
+    spinner.start()
+
     const people: Person[] = []
     for (let i = 0; i < cards.length; i += 1) {
         const person = await mapCardToJson(cards[i])
         if (person) people.push(person)
     }
-
+    
     fs.writeFileSync("test.json", JSON.stringify(people))
+    spinner.succeed()
+    await browser.close()
 }
 
 test()
