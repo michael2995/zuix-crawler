@@ -1,14 +1,24 @@
 import inquirer from "inquirer"
 import { ElementHandle } from "puppeteer"
-import {getBrowser} from "./module"
-import {ensureRender} from "./util"
 import fs from "fs"
 import ora from "ora"
 
-const {MS_ACCOUNT, MS_PASSWORD} = process.env
+import "./config"
+import {getBrowser} from "./module"
+import {ensureRender} from "./util"
+import {Person} from "./type/model"
+import { update } from "./task/update"
+
+const {MS_ACCOUNT, MS_PASSWORD, SERVER_ENDPOINT} = process.env
 const spinner = ora()
 
 async function crawlPesonnelInfo() {
+    if (!MS_ACCOUNT) throw Error("Couldn't find account")
+    if (!MS_PASSWORD) throw Error("Couldn't find password")
+
+    spinner.text = "Navigating to Docswave"
+    spinner.start()
+
     const browser = await getBrowser()
     const page = await browser.newPage()
 
@@ -52,9 +62,11 @@ async function crawlPesonnelInfo() {
 
     const msIdInput = await page.waitForSelector("input#i0116")
     await msIdInput?.type(MS_ACCOUNT)
-
+    
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
+
+    await ensureRender(page)
 
     const msPassInput = await page.waitForSelector("input#i0118")
 
@@ -65,15 +77,17 @@ async function crawlPesonnelInfo() {
     //     default: "secret",
     // }).then((value) => value.pass)
 
-    spinner.text = "Logging in to docswave"
-    spinner.start()
-
     await msPassInput?.type(MS_PASSWORD)
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
 
     await page.waitForSelector("input#idSIButton9")
     .then((next) => next?.click())
+
+    spinner.succeed()
+
+    spinner.text = "Logging in to Docswave"
+    spinner.start()
 
     await page.waitForNavigation({ waitUntil: "networkidle0" })
     await page.waitForNavigation({ waitUntil: "networkidle0" })
@@ -146,17 +160,15 @@ async function crawlPesonnelInfo() {
         if (person) people.push(person)
     }
     
-    fs.writeFileSync("test.json", JSON.stringify(people))
+    for (let i = 0; i < people.length; i += 1) {
+        spinner.text = `updating personel_${i}`
+        spinner.start()
+        await update(people[i])
+        spinner.succeed()
+    }
+
     spinner.succeed()
     await browser.close()
 }
 
 crawlPesonnelInfo()
-
-type Person = {
-    name: string
-    role: string
-    part: string
-    email: string
-    phone: string
-}
